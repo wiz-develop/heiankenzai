@@ -213,6 +213,48 @@ function heiankenzai_enqueue_catalog_styles() {
 add_action('wp_enqueue_scripts', 'heiankenzai_enqueue_catalog_styles', 20);
 
 /**
+ * Find the first Cover block, including covers nested inside Group blocks.
+ *
+ * @param array $blocks Parsed page blocks.
+ * @return array|null
+ */
+function heiankenzai_find_page_title_cover($blocks) {
+	foreach ($blocks as $block) {
+		if ('core/cover' === $block['blockName']) {
+			return $block;
+		}
+
+		if (! empty($block['innerBlocks'])) {
+			$cover = heiankenzai_find_page_title_cover($block['innerBlocks']);
+			if ($cover) {
+				return $cover;
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Keep the existing catalog page-title block when replacing the page body.
+ *
+ * @param int $page_id Catalog page ID.
+ * @return string
+ */
+function heiankenzai_catalog_page_title($page_id) {
+	$original_content = get_post_field('post_content', $page_id);
+
+	if ($original_content) {
+		$cover = heiankenzai_find_page_title_cover(parse_blocks($original_content));
+		if ($cover) {
+			return render_block($cover);
+		}
+	}
+
+	return '<div class="hk-catalog-page-title"><div class="hk-catalog-page-title__inner"><h1>カタログ</h1></div></div>';
+}
+
+/**
  * Replace the old catalog page blocks with the managed catalog list.
  *
  * @param string $content Original page content.
@@ -223,6 +265,8 @@ function heiankenzai_catalog_page_content($content) {
 		return $content;
 	}
 
+	$page_title = heiankenzai_catalog_page_title(get_queried_object_id());
+
 	$catalogs = new WP_Query([
 		'post_type'      => 'catalog_item',
 		'post_status'    => 'publish',
@@ -232,10 +276,10 @@ function heiankenzai_catalog_page_content($content) {
 	]);
 
 	ob_start();
+	echo $page_title; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	?>
 	<section class="hk-catalog" aria-labelledby="hk-catalog-heading">
 		<header class="hk-catalog__header">
-			<p class="hk-catalog__eyebrow">CATALOG</p>
 			<h2 id="hk-catalog-heading">製品カタログ</h2>
 			<p>各カタログの画像またはボタンから内容をご覧いただけます。</p>
 		</header>

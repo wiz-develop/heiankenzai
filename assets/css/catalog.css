@@ -5,39 +5,45 @@
   --catalog-muted: #667085;
   --catalog-pale: #edf3fb;
   width: min(1120px, 100%);
-  margin-inline: auto;
+  margin: clamp(40px, 6vw, 72px) auto 0;
   padding-inline: clamp(20px, 4vw, 48px);
 }
 
-.hk-catalog__header {
-  max-width: 720px;
-  margin-bottom: clamp(32px, 5vw, 56px);
+.hk-catalog-page-title {
+  display: flex;
+  align-items: center;
+  width: 100vw;
+  min-height: 184px;
+  margin-left: calc(50% - 50vw);
+  background: #103674;
+  color: #fff;
 }
 
-.hk-catalog__eyebrow {
-  margin: 0 0 8px;
-  color: var(--catalog-blue);
-  font-family: "Outfit", sans-serif;
-  font-size: 0.8rem;
+.hk-catalog-page-title__inner {
+  width: 85%;
+  margin-inline: auto;
+}
+
+.hk-catalog-page-title h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 40px;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  line-height: 1.8;
+}
+
+.hk-catalog__header {
+  margin-bottom: 32px;
 }
 
 .hk-catalog__header h2 {
-  position: relative;
   margin: 0 0 18px;
-  padding-left: 18px;
-  color: var(--catalog-ink);
-  font-size: clamp(1.65rem, 3vw, 2.25rem);
-  line-height: 1.35;
-}
-
-.hk-catalog__header h2::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 5px;
-  background: var(--catalog-blue);
-  content: "";
+  padding: 8px 16px;
+  background: #5774a2;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .hk-catalog__header > p:last-child {
@@ -191,7 +197,12 @@
 
 @media (max-width: 640px) {
   .hk-catalog {
+    margin-top: 36px;
     padding-inline: 18px;
+  }
+
+  .hk-catalog__header h2 {
+    font-size: 18px;
   }
 
   .hk-catalog-card {

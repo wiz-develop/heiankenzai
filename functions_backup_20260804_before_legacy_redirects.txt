@@ -1,0 +1,853 @@
+<?php
+/**
+ * Blocksy functions and definitions
+ *
+ * @link https://developer.wordpress.org/themes/basics/theme-functions/
+ *
+ * @package Blocksy
+ */
+
+if (version_compare(PHP_VERSION, '5.7.0', '<')) {
+	require get_template_directory() . '/inc/php-fallback.php';
+	return;
+}
+
+require get_template_directory() . '/inc/init.php';
+
+/*-------------------------------------------*/
+/*  ファイルの更新日時を取得
+/*-------------------------------------------*/
+function update_date($path) {
+	return date("ymdHis", filemtime($path));
+}
+
+/*-------------------------------------------*/
+/*  ヘッダー、フッターでの読み込み
+/*-------------------------------------------*/
+function add_wp_head_custom(){ ?>
+	<?php date_default_timezone_set('Asia/Tokyo'); ?>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p&family=Noto+Sans+JP:wght@100..900&family=Outfit:wght@100..900&family=Zen+Kaku+Gothic+New&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+	<link rel="stylesheet" href="<?php echo get_stylesheet_directory_uri(); ?>/assets/css/style.min.css?ver=<?php echo update_date( get_stylesheet_directory()."/assets/css/style.css"); ?>" media="all" />
+<?php }
+add_action( 'wp_head', 'add_wp_head_custom',99);
+function add_wp_footer_custom(){ ?>
+	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+	<script type="text/javascript" src="<?php echo get_stylesheet_directory_uri(); ?>/assets/js/common.js?ver=<?php echo update_date(get_stylesheet_directory()."/assets/js/common.js"); ?>"></script>
+<?php }
+add_action( 'wp_footer', 'add_wp_footer_custom', 99);
+
+/*-------------------------------------------*/
+/*  common.jsでサイトのURL・テーマURLを使えるようにする
+/*-------------------------------------------*/
+  $tmp_path_arr = array(
+	  'temp_uri' => get_template_directory_uri(),
+	  'home_url' => home_url()
+  );
+//   wp_enqueue_script( 'common', get_template_directory_uri() . '/assets/js/common.js', '', update_date((get_stylesheet_directory()."/assets/js/common.js")), true );
+  wp_localize_script( 'common', 'tmp_path', $tmp_path_arr );
+  
+  // 記事の自動整形を無効化
+  remove_filter('the_content', 'wpautop');
+
+/**
+ * FAQ カスタム投稿タイプ & タクソノミー
+ */
+add_action('init', function () {
+    register_post_type('faq', [
+        'labels' => [
+            'name'          => 'よくあるご質問',
+            'singular_name' => 'FAQ',
+            'add_new_item'  => '新しい質問を追加',
+            'edit_item'     => '質問を編集',
+        ],
+        // フロントのルーティングは無効、管理画面UIは有効
+        'public'              => false,          // ← フロント公開はしない
+        'show_ui'             => true,           // 管理画面に表示
+        'show_in_menu'        => true,
+        'show_in_rest'        => true,           // ブロックエディタ/ACF対応
+        'exclude_from_search' => true,           // 検索に出さない
+        'publicly_queryable'  => false,          // 個別URLを有効化しない
+        'has_archive'         => false,          // アーカイブ無し（/faq/ を取らない）
+        'rewrite'             => false,          // リライトルール無し（競合回避）
+        'supports'            => ['title', 'editor', 'page-attributes'],
+        'menu_position'       => 5,
+        'menu_icon'           => 'dashicons-editor-help',
+    ]);
+
+    register_taxonomy('faq_category', 'faq', [
+        'label'        => 'FAQカテゴリー',
+        'hierarchical' => true,
+        'show_ui'      => true,
+        'show_in_rest' => true,
+        // 固定ページのスラッグと被らないように（任意）
+        'rewrite'      => ['slug' => 'faq-category', 'with_front' => false],
+        'public'       => false,          // 直接URLは不要
+        'publicly_queryable' => false,
+    ]);
+});
+
+/**
+ * ACF ローカル定義（FAQに「表示ページ指定」フィールドを自動作成）
+ * ACF が有効な時のみ実行
+ */
+add_action('acf/init', function () {
+    if (!function_exists('acf_add_local_field_group')) return;
+
+    acf_add_local_field_group([
+        'key'                   => 'group_faq_display_pages',
+        'title'                 => 'FAQ表示設定',
+        'fields'                => [
+            [
+                'key'           => 'field_faq_display_pages',
+                'label'         => '表示する固定ページ',
+                'name'          => 'display_pages',
+                'type'          => 'relationship', // or 'post_object' (multiple)
+                'post_type'     => ['page'],
+                'filters'       => ['search', 'post_type'],
+                'return_format' => 'id',          // ★ID返却（重要）
+                'multiple'      => 1,
+                'instructions'  => 'このFAQを表示したい固定ページを選択してください（複数可）',
+            ],
+        ],
+        'location' => [[
+            [
+                'param'    => 'post_type',
+                'operator' => '==',
+                'value'    => 'faq',
+            ],
+        ]],
+        'position'      => 'normal',
+        'style'         => 'default',
+        'active'        => true,
+    ]);
+});
+
+/**
+ * FAQ 取得用ヘルパー
+ * - $args['page_id'] があれば ACF「display_pages」にそのページIDが含まれるFAQを抽出
+ * - $args['group_by_category'] true でカテゴリごとに配列をグループ化
+ */
+function get_faq_items($args = []) {
+    $defaults = [
+        'page_id'           => 0,       // 指定があればページ紐づけで絞り込み
+        'posts_per_page'    => -1,
+        'order'             => 'ASC',
+        'orderby'           => 'menu_order title',
+        'category__in'      => [],      // 指定カテゴリで絞り込み（必要なら）
+        'group_by_category' => false,
+    ];
+    $args = wp_parse_args($args, $defaults);
+
+    $query_args = [
+        'post_type'      => 'faq',
+        'posts_per_page' => $args['posts_per_page'],
+        'order'          => $args['order'],
+        'orderby'        => $args['orderby'],
+        'tax_query'      => [],
+        'meta_query'     => [],
+        'no_found_rows'  => true,
+    ];
+
+    // ページ指定（ACF relationship は serialized IDs なので "LIKE" 検索）
+    if (!empty($args['page_id'])) {
+        $page_id = (int) $args['page_id'];
+        $query_args['meta_query'][] = [
+            'key'     => 'display_pages',
+            'value'   => '"' . $page_id . '"',
+            'compare' => 'LIKE',
+        ];
+    }
+
+    // カテゴリで絞る（任意）
+    if (!empty($args['category__in'])) {
+        $query_args['tax_query'][] = [
+            'taxonomy' => 'faq_category',
+            'field'    => 'term_id',
+            'terms'    => array_map('intval', (array)$args['category__in']),
+        ];
+    }
+
+    $q = new WP_Query($query_args);
+
+    if (!$args['group_by_category']) return $q;
+
+    // カテゴリごとにグルーピングして返す
+    $grouped = [];
+    if ($q->have_posts()) {
+        while ($q->have_posts()) {
+            $q->the_post();
+            $terms = get_the_terms(get_the_ID(), 'faq_category') ?: [];
+            if (!$terms) {
+                $grouped[0]['term'] = null;
+                $grouped[0]['posts'][] = get_post();
+            } else {
+                foreach ($terms as $t) {
+                    $tid = $t->term_id;
+                    if (!isset($grouped[$tid])) {
+                        $grouped[$tid] = ['term' => $t, 'posts' => []];
+                    }
+                    $grouped[$tid]['posts'][] = get_post();
+                }
+            }
+        }
+        wp_reset_postdata();
+    }
+    return $grouped;
+}
+
+/**
+ * 表示ショートコード
+ * [faq_list] … 現在の固定ページに紐づいたFAQを一括表示（トップや事業詳細で使う）
+ * [faq_all]  … 全FAQをカテゴリ分けなしで表示（トップ用など）
+ * [faq_archive_like] … カテゴリごとにまとめて表示（一覧ページ用）
+ */
+add_shortcode('faq_list', function ($atts) {
+    $atts = shortcode_atts([
+        'page_id'        => get_the_ID(),
+        'posts_per_page' => -1,
+        'accordion'      => '1',
+        'more_link'      => '0',      // ← 追加
+        'archive_url'    => '/faq/',  // ← 追加
+        'more_label'     => '一覧へ',  // ← 追加
+    ], $atts, 'faq_list');
+
+    $q = get_faq_items([
+        'page_id'           => (int) $atts['page_id'],
+        'posts_per_page'    => (int) $atts['posts_per_page'],
+        'group_by_category' => false,
+    ]);
+
+    ob_start();
+    if ($q->have_posts()) {
+        // 先にカテゴリ収集
+        $cat_terms = [];
+        while ($q->have_posts()) { $q->the_post();
+            $terms = get_the_terms(get_the_ID(), 'faq_category') ?: [];
+            foreach ($terms as $t) { $cat_terms[$t->slug] = $t; }
+        }
+        wp_reset_postdata();
+
+        echo '<div class="faq-list" data-accordion="'.esc_attr($atts['accordion']).'">';
+        while ($q->have_posts()) { $q->the_post(); ?>
+            <div class="faq-item">
+                <div class="faq-item__question acor-menu mb-0"><?php echo esc_html(get_the_title()); ?></div>
+                <div class="faq-item__answer acor-menu-child w-100 px-3 pb-3 pt-1">
+                    <div class="d-flex bg-white px-2 py-2 faq-content__answer__txt"><?php the_content(); ?></div>
+                </div>
+            </div>
+        <?php }
+        echo '</div>';
+        wp_reset_postdata();
+
+        // 「一覧へ」リンク（該当カテゴリへジャンプ）
+        if ($atts['more_link'] === '1' && !empty($cat_terms)) {
+            echo '<div class="faq-more-links" style="margin-top:16px;">';
+            foreach ($cat_terms as $t) {
+                $href = trailingslashit($atts['archive_url']).'#faq-cat-'.rawurlencode($t->slug);
+                echo '<a class="btn btn-outline-primary me-2" href="'.esc_url($href).'">'.esc_html($t->name).'の'.$atts['more_label'].'</a>';
+            }
+            echo '</div>';
+        }
+    }
+    return ob_get_clean();
+});
+
+add_shortcode('faq_all', function ($atts) {
+    $atts = shortcode_atts([
+        'posts_per_page' => -1,
+        'accordion'      => '1',
+        'more_link'      => '0',      // ← 追加: 一覧リンクを出すか
+        'archive_url'    => '/faq/',  // ← 追加: 一覧ページのURL（必要なら変更）
+        'more_label'     => '一覧へ',  // ← 追加: ボタン文言
+    ], $atts, 'faq_all');
+
+    $q = get_faq_items([
+        'posts_per_page' => (int) $atts['posts_per_page'],
+        'group_by_category' => false,
+    ]);
+
+    ob_start();
+    if ($q->have_posts()) {
+
+        // 表示中FAQが属するカテゴリを収集（ユニーク）
+        $cat_terms = [];
+        while ($q->have_posts()) { $q->the_post();
+            $terms = get_the_terms(get_the_ID(), 'faq_category') ?: [];
+            foreach ($terms as $t) { $cat_terms[$t->slug] = $t; }
+        }
+        wp_reset_postdata();
+
+        echo '<div class="faq-list" data-accordion="'.esc_attr($atts['accordion']).'">';
+        while ($q->have_posts()) { $q->the_post(); ?>
+            <div class="faq-item">
+                <div class="faq-item__question acor-menu mb-0"><?php echo esc_html(get_the_title()); ?></div>
+                <div class="faq-item__answer acor-menu-child w-100 px-3 pb-3 pt-1">
+                    <div class="d-flex bg-white px-2 py-2 faq-content__answer__txt"><?php the_content(); ?></div>
+                </div>
+            </div>
+        <?php }
+        echo '</div>';
+        wp_reset_postdata();
+
+        // カテゴリ別の「一覧へ」リンク（任意）
+        if ($atts['more_link'] === '1' && !empty($cat_terms)) {
+            echo '<div class="faq-more-links" style="margin-top:16px;">';
+            foreach ($cat_terms as $t) {
+                $href = trailingslashit($atts['archive_url']).'#faq-cat-'.rawurlencode($t->slug);
+                echo '<a class="btn btn-outline-primary me-2" href="'.esc_url($href).'">'.esc_html($t->name).'の'.$atts['more_label'].'</a>';
+            }
+            echo '</div>';
+        }
+    }
+    return ob_get_clean();
+});
+
+add_shortcode('faq_archive_like', function ($atts) {
+    $atts = shortcode_atts([
+        'accordion' => '1',
+    ], $atts, 'faq_archive_like');
+
+    $terms = get_terms(['taxonomy' => 'faq_category', 'hide_empty' => true]);
+    ob_start();
+    if (!is_wp_error($terms) && $terms) {
+        foreach ($terms as $term) {
+            $q = new WP_Query([
+                'post_type' => 'faq',
+                'posts_per_page' => -1,
+                'tax_query' => [[
+                    'taxonomy' => 'faq_category',
+                    'field'    => 'term_id',
+                    'terms'    => $term->term_id,
+                ]],
+                'no_found_rows' => true,
+            ]);
+            if ($q->have_posts()) {
+                echo '<section class="faq-category" id="faq-cat-'.esc_attr($term->slug).'">';
+                echo '<h2 class="faq-category__title">'.esc_html($term->name).'</h2>';
+                echo '<div class="faq-list" data-accordion="'.esc_attr($atts['accordion']).'">';
+                while ($q->have_posts()) {
+                    $q->the_post();
+                    ?>
+                    <div class="faq-item">
+						<div class="faq-item__question acor-menu mb-0">
+							<?php echo esc_html(get_the_title()); ?>
+						</div>
+						<div class="faq-item__answer acor-menu-child w-100 px-3 pb-3 pt-1">
+							<div class="d-flex bg-white px-2 py-2 faq-content__answer__txt">
+								<?php the_content(); ?>
+							</div>
+						</div>
+					</div>
+                    <?php
+                }
+                echo '</div></section>';
+                wp_reset_postdata();
+            }
+        }
+    }
+    return ob_get_clean();
+});
+
+function load_top_news_list() {
+    ob_start();
+    get_template_part('template-parts/top-news_list');
+    return ob_get_clean();
+}
+add_shortcode('top_news_list', 'load_top_news_list');
+
+function load_latest_news() {
+    ob_start();
+    get_template_part('template-parts/latest-news-ticker');
+    return ob_get_clean();
+}
+add_shortcode('latest_news', 'load_latest_news');
+
+function load_top_first_view() {
+    ob_start();
+    get_template_part('template-parts/top_first-view');
+    return ob_get_clean();
+}
+add_shortcode('top_first_view', 'load_top_first_view');
+
+function load_parts_business() {
+    ob_start();
+    get_template_part('template-parts/parts_business');
+    return ob_get_clean();
+}
+add_shortcode('parts_business', 'load_parts_business');
+
+// 社員インタビュー CPT 登録
+add_action('init', function () {
+  register_post_type('interview', [
+    'labels' => [
+      'name'          => '社員インタビュー',
+      'singular_name' => '社員インタビュー',
+      'add_new_item'  => 'インタビューを追加',
+      'edit_item'     => 'インタビューを編集',
+      'menu_name'     => '社員インタビュー',
+    ],
+    'public'       => true,
+    'has_archive'  => true,                 // /interview/
+    'rewrite'      => ['slug' => 'interview'],
+    'menu_icon'    => 'dashicons-admin-users',
+    'show_in_rest' => true,                 // ブロックエディタ
+    'supports'     => ['title','editor','thumbnail','excerpt','revisions'],
+    // ★ ここで template / template_lock は一切指定しない（=クリア）
+  ]);
+});
+
+add_filter('register_post_type_args', function ($args, $post_type) {
+  if ($post_type === 'interview') {
+    unset($args['template'], $args['template_lock']);
+  }
+  return $args;
+}, 10, 2);
+
+// SwiperをCDNから読み込み（v11安定版）
+add_action('wp_enqueue_scripts', function () {
+  // Swiper CSS
+  wp_enqueue_style(
+    'swiper',
+    'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css',
+    [],
+    '11.0.0'
+  );
+
+  // Swiper JS
+  wp_enqueue_script(
+    'swiper',
+    'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js',
+    [],
+    '11.0.0',
+    true
+  );
+
+  // カルーセル初期化スクリプト（Swiper読込後に動く）
+  wp_register_script('interview-carousel-init', '', ['swiper'], '1.0.0', true);
+  wp_add_inline_script('interview-carousel-init', <<<JS
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.interview-carousel').forEach(function(el){
+      if (typeof Swiper === 'undefined') return;
+
+      var total = parseInt(el.getAttribute('data-total') || '1', 10);
+
+      new Swiper(el, {
+        slidesPerView: 1,
+        spaceBetween: 16,
+        loop: total > 1,
+        observer: true,
+        observeParents: true,
+        pagination: {
+            el: el.querySelector('.swiper-pagination'),
+            clickable: true
+        },
+        navigation: {
+            nextEl: el.querySelector('.swiper-button-next'),
+            prevEl: el.querySelector('.swiper-button-prev')
+        },
+        breakpoints: {
+            769: { slidesPerView: 2, spaceBetween: 24 },      // タブレット（769px以上）
+            993: { slidesPerView: Math.min(3, total), spaceBetween: 24 } // PC（993px以上）
+        },
+        watchOverflow: true
+      });
+    });
+  });
+  JS);
+});
+
+/* ===== [interview_carousel count="6"] ===== */
+add_shortcode('interview_carousel', function($atts){
+  $a = shortcode_atts(['count' => 6], $atts, 'interview_carousel');
+  $limit = min(6, (int) $a['count']);
+
+  // 1) 固定番号ありの投稿だけを昇順で取得
+  $q = new WP_Query([
+    'post_type'      => 'interview',
+    'post_status'    => 'publish',
+    'posts_per_page' => $limit,
+    'orderby'        => 'meta_value_num',
+    'meta_key'       => 'interview_number',
+    'order'          => 'ASC', // #1 → #2 …
+    'no_found_rows'  => true,
+    'meta_query'     => [[
+      'key'     => 'interview_number',
+      'compare' => 'EXISTS', // 番号未設定を除外
+    ]],
+  ]);
+
+  // 2) もし1件も無い（まだ番号を付けていない）場合、公開日DESCでフォールバック
+  if ( ! $q->have_posts() ) {
+    $q = new WP_Query([
+      'post_type'      => 'interview',
+      'post_status'    => 'publish',
+      'posts_per_page' => $limit,
+      'orderby'        => 'date',
+      'order'          => 'DESC',
+      'no_found_rows'  => true,
+    ]);
+    if ( ! $q->have_posts() ) return ''; // 本当に0件
+  }
+
+  // 初期化スクリプトは共通読み込み済みのものを使う
+  wp_enqueue_script('interview-carousel-init');
+
+  ob_start(); ?>
+  <div class="interview-carousel swiper" data-total="<?php echo (int) $q->post_count; ?>">
+    <div class="swiper-wrapper">
+      <?php while ($q->have_posts()) : $q->the_post();
+        $num       = get_field('interview_number'); // あれば表示
+        $title     = get_the_title();
+        $img       = get_the_post_thumbnail_url(get_the_ID(), 'large');
+        $headline  = trim((string) get_field('headline')) ?: get_the_excerpt();
+        $dept      = trim((string) get_field('department'));
+        $role      = trim((string) get_field('role_detail'));
+        $catch_lines = array_filter(array_map('trim', preg_split("/\r\n|\r|\n/", $headline)));
+      ?>
+      <div class="swiper-slide">
+        <article class="intv-card intv-card--list">
+          <a class="intv-arrow" href="<?php the_permalink(); ?>" aria-label="詳しく見る">
+            <div class="intv-card__text">
+              <?php if ($num): ?><div class="intv-card__no">#<?php echo esc_html($num); ?></div><?php endif; ?>
+
+              <?php if ($catch_lines): ?>
+                <h3 class="intv-card__catch">
+                  <?php foreach ($catch_lines as $line): ?>
+                    <span class="intv-card__catch-chip"><?php echo esc_html($line); ?></span>
+                  <?php endforeach; ?>
+                </h3>
+              <?php endif; ?>
+
+              <div class="intv-card__meta">
+                <?php if ($dept): ?><div class="intv-card__dept"><?php echo nl2br(esc_html($dept)); ?></div><?php endif; ?>
+                <?php if ($role): ?><div class="intv-card__role"><?php echo esc_html($role); ?></div><?php endif; ?>
+                <div class="intv-card__name mt-0"><?php echo esc_html($title); ?> <span>さん</span></div>
+              </div>
+
+              <div class="intv-card_arrow">
+                <span>詳しく見る</span><i class="fa-solid fa-circle-right ps-2"></i>
+              </div>
+            </div>
+
+            <div class="intv-card__photo edge-bleed-sm">
+              <?php if ($img): ?><img src="<?php echo esc_url($img); ?>" alt=""><?php endif; ?>
+            </div>
+          </a>
+        </article>
+      </div>
+      <?php endwhile; wp_reset_postdata(); ?>
+    </div>
+
+    <div class="swiper-pagination"></div>
+    <div class="swiper-button-prev" aria-label="前へ"></div>
+    <div class="swiper-button-next" aria-label="次へ"></div>
+  </div>
+  <?php
+  return ob_get_clean();
+});
+
+add_action('after_setup_theme', function () {
+  add_theme_support('align-wide');       // 全幅/幅広
+  add_theme_support('responsive-embeds');
+  add_theme_support('editor-styles');
+  // 一覧/カルーセル用の画像サイズ
+  add_image_size('interview-xl', 960, 640, true);
+});
+
+// 固定番号ベースの前後ナビ（単記事用）
+add_shortcode('interview_pager', function () {
+  if (!is_singular('interview')) return '';
+
+  $archive_url = get_post_type_archive_link('interview');
+  $current_id  = get_the_ID();
+
+  // 固定番号の付いている投稿だけを、番号昇順で取得
+  $q = new WP_Query([
+    'post_type'      => 'interview',
+    'post_status'    => 'publish',
+    'posts_per_page' => -1,
+    'fields'         => 'ids',
+    'orderby'        => 'meta_value_num',
+    'meta_key'       => 'interview_number',
+    'order'          => 'ASC',          // #1 → #2 → ...
+    'no_found_rows'  => true,
+    'meta_query'     => [[              // 番号未設定を除外
+      'key'     => 'interview_number',
+      'compare' => 'EXISTS',
+    ]],
+  ]);
+  if (!$q->posts) return '';
+
+  $ids = array_values($q->posts);                 // 昇順リスト
+  $idx = array_search($current_id, $ids, true);
+  if ($idx === false) return '';                  // 現在記事が番号未設定なら出さない
+
+  // 前後ID（前＝番号が大きい、次＝番号が小さい ではなく、昇順で単純に前後）
+  $prev_id = $ids[$idx - 1] ?? 0;                // ひとつ前（番号が小さい方）
+  $next_id = $ids[$idx + 1] ?? 0;                // ひとつ後（番号が大きい方）
+
+  // 表示ラベルは固定番号そのものを使用
+  $prev_no = $prev_id ? get_field('interview_number', $prev_id) : null;
+  $next_no = $next_id ? get_field('interview_number', $next_id) : null;
+
+  ob_start(); ?>
+  <nav class="intv-pager" aria-label="Interview pager">
+    <div class="intv-pager__inner">
+
+      <?php if ($prev_id): ?>
+        <a class="intv-pager__btn intv-pager__prev"
+           href="<?php echo esc_url(get_permalink($prev_id)); ?>"
+           aria-label="<?php echo esc_attr(get_the_title($prev_id)); ?>">
+          <span class="intv-pager__arrow">‹</span>
+          <span class="intv-pager__label">#<?php echo esc_html($prev_no); ?></span>
+        </a>
+      <?php else: ?>
+        <span class="intv-pager__btn intv-pager__prev is-disabled" aria-hidden="true">
+          <span class="intv-pager__arrow">‹</span>
+          <span class="intv-pager__label">—</span>
+        </span>
+      <?php endif; ?>
+
+      <a class="intv-pager__home text-center" href="<?php echo esc_url($archive_url); ?>">
+        社員インタビュー<br class="sp-br">トップ
+      </a>
+
+      <?php if ($next_id): ?>
+        <a class="intv-pager__btn intv-pager__next"
+           href="<?php echo esc_url(get_permalink($next_id)); ?>"
+           aria-label="<?php echo esc_attr(get_the_title($next_id)); ?>">
+          <span class="intv-pager__label">#<?php echo esc_html($next_no); ?></span>
+          <span class="intv-pager__arrow">›</span>
+        </a>
+      <?php else: ?>
+        <span class="intv-pager__btn intv-pager__next is-disabled" aria-hidden="true">
+          <span class="intv-pager__label">—</span>
+          <span class="intv-pager__arrow">›</span>
+        </span>
+      <?php endif; ?>
+
+    </div>
+  </nav>
+  <?php
+  return ob_get_clean();
+});
+
+add_shortcode('interview_list', function ($atts) {
+  // 固定: 1ページ件数（必要なら $atts で可変化してOK）
+  $posts_per_page = 12;
+
+  // 固定ページでも動くように 'paged' と 'page' の両方を見る
+  $paged = max(1, (int) get_query_var('paged'), (int) get_query_var('page'));
+
+  // --- 1) 固定番号（interview_number）が付いている投稿だけを昇順でページング ---
+  $q = new WP_Query([
+    'post_type'      => 'interview',
+    'post_status'    => 'publish',
+    'posts_per_page' => $posts_per_page,
+    'paged'          => $paged,
+    'orderby'        => 'meta_value_num',
+    'meta_key'       => 'interview_number',
+    'order'          => 'ASC', // #1 → #2 → ...
+    'meta_query'     => [[
+      'key'     => 'interview_number',
+      'compare' => 'EXISTS',   // 番号未設定は除外
+    ]],
+  ]);
+
+  // --- 2) 番号付きが1件も無ければ、公開日DESCでフォールバック ---
+  if (!$q->have_posts()) {
+    $q = new WP_Query([
+      'post_type'      => 'interview',
+      'post_status'    => 'publish',
+      'posts_per_page' => $posts_per_page,
+      'paged'          => $paged,
+      'orderby'        => 'date',
+      'order'          => 'DESC',
+    ]);
+    if (!$q->have_posts()) return '<p>現在、記事はありません。</p>';
+  }
+
+  ob_start(); ?>
+  <div class="intv-grid">
+    <?php while ($q->have_posts()): $q->the_post();
+      $num  = get_field('interview_number'); // 固定番号（無ければ非表示）
+      $img  = get_the_post_thumbnail_url(get_the_ID(), 'large');
+      $hl   = get_field('headline') ?: get_the_excerpt();
+      $dept = get_field('department');
+      $role = get_field('role_detail');
+    ?>
+      <article class="intv-card intv-card--list">
+        <a class="intv-card__link" href="<?php the_permalink(); ?>" aria-label="<?php the_title_attribute(); ?>">
+          <div class="intv-card__text">
+            <?php if ($num): ?>
+              <div class="intv-card__no">#<?php echo esc_html($num); ?></div>
+            <?php endif; ?>
+
+            <?php if ($hl): ?>
+              <h3 class="intv-card__catch">
+                <?php foreach (array_filter(array_map('trim', preg_split("/\r\n|\r|\n/", $hl))) as $line): ?>
+                  <span class="intv-card__catch-chip"><?php echo esc_html($line); ?></span>
+                <?php endforeach; ?>
+              </h3>
+            <?php endif; ?>
+
+            <div class="intv-card__meta">
+              <?php if ($dept): ?><div class="intv-card__dept"><?php echo nl2br(esc_html($dept)); ?></div><?php endif; ?>
+              <?php if ($role): ?><div class="intv-card__role"><?php echo nl2br(esc_html($role)); ?></div><?php endif; ?>
+              <div class="intv-card__name"><?php the_title(); ?> <span>さん</span></div>
+            </div>
+
+            <div class="intv-card_arrow">
+              <span>詳しく見る</span><i class="fa-solid fa-circle-right ps-2"></i>
+            </div>
+          </div>
+
+          <div class="intv-card__photo">
+            <?php if ($img): ?><img src="<?php echo esc_url($img); ?>" alt=""><?php endif; ?>
+          </div>
+        </a>
+      </article>
+    <?php endwhile; ?>
+  </div>
+
+  <div class="intv-pagination">
+    <?php
+    // 固定ページに挿入した場合でも正しくリンクが生成されるように
+    $big = 999999999; // need an unlikely integer
+    echo paginate_links([
+      'base'      => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+      'format'    => 'page/%#%/', // パーマリンク構成に合わせて調整（/%#%/ など）
+      'total'     => $q->max_num_pages,
+      'current'   => $paged,
+      'prev_text' => '‹',
+      'next_text' => '›',
+      'type'      => 'list',
+    ]);
+    ?>
+  </div>
+  <?php
+  wp_reset_postdata();
+  return ob_get_clean();
+});
+add_filter('get_the_archive_title', function ($title) {
+    if (is_category()) {
+        $title = single_cat_title('', false);
+    } elseif (is_tag()) {
+        $title = single_tag_title('', false);
+    } elseif (is_year()) {
+        $title = get_query_var('year') . '年';
+    } elseif (is_month()) {
+        $title = get_the_date('Y年n月');
+    } elseif (is_post_type_archive()) {
+        $title = post_type_archive_title('', false);
+    } elseif (is_home()) {
+        $title = single_post_title('', false);
+    } elseif (is_author()) {
+        $title = get_the_author();
+    }
+    return $title;
+});
+add_filter('blocksy:breadcrumbs:output', function ($output) {
+    // 詳細ページ、カテゴリー、アーカイブページが対象
+    if ( (is_single() || is_category() || is_archive()) && !is_home() ) {
+        
+        $news_page_id = get_option('page_for_posts');
+        $news_url = get_permalink($news_page_id);
+        $news_title = get_the_title($news_page_id) ?: '新着情報';
+
+        // 「ホーム」の直後に「新着情報」を挿入する
+        // </a> と次の項目の間に「新着情報」のリンクを差し込む処理
+        $search = '</a>'; // 最初のホームの閉じタグ
+        $replace = '</a><span class="delimiter"></span><a href="' . $news_url . '">' . $news_title . '</a>';
+        
+        // 最初の1回だけ置換（Homeの直後）
+        $output = preg_replace('/' . preg_quote($search, '/') . '/', $replace, $output, 1);
+        
+        // もし「採用情報（カテゴリー名）」を消して「Home > 新着情報 > タイトル」にしたい場合は、
+        // さらにCSSで調整するのが最も安全です。
+    }
+    return $output;
+}, 9999);
+add_action('wp_footer', function() {
+    if ( is_single() || is_category() || is_archive() ) {
+        $news_page_id = get_option('page_for_posts');
+        $news_url = get_permalink($news_page_id);
+        $news_title = get_the_title($news_page_id) ?: '新着情報';
+        ?>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const breadcrumbs = document.querySelector('.ct-breadcrumbs');
+            if (!breadcrumbs) return;
+
+            const firstLink = breadcrumbs.querySelector('a');
+            if (firstLink && (firstLink.innerText.includes('ホーム') || firstLink.innerText.includes('Home'))) {
+                
+                // テーマ標準のSVGコード
+                const svgIcon = '<svg class="ct-separator" fill="currentColor" width="8" height="8" viewBox="0 0 8 8" aria-hidden="true" focusable="false"><path d="M2,6.9L4.8,4L2,1.1L2.6,0l4,4l-4,4L2,6.9z"></path></svg>';
+                
+                // 「新着情報」のリンクHTML
+                const newsLinkHtml = '<a href="<?php echo $news_url; ?>"><?php echo $news_title; ?></a>';
+
+                // ホームリンクの直後に「SVG + 新着情報」を挿入
+                firstLink.insertAdjacentHTML('afterend', svgIcon + newsLinkHtml);
+
+                // もともと表示されていたカテゴリー（採用情報など）を非表示にする
+                // ホーム(0) > SVG(1) > 新着(2) > SVG(3) > カテゴリ(4) > SVG(5) > 現在地 のうち 4と5を隠す
+                const allElements = Array.from(breadcrumbs.childNodes);
+                // aタグの数を数えて、4つ以上ある場合は途中のカテゴリーを隠す
+                const links = breadcrumbs.querySelectorAll('a');
+                if (links.length >= 4) {
+                    // 「新着情報」より後のリンク（本来のカテゴリー）と、その直前のSVGを隠す
+                    links[2].style.display = 'none';
+                    if (links[2].previousElementSibling && links[2].previousElementSibling.tagName === 'svg') {
+                        links[2].previousElementSibling.style.display = 'none';
+                    }
+                }
+            }
+        });
+        </script>
+        <?php
+    }
+}, 999);
+
+/**
+ * Fix pagination for the root-level Communication category archive.
+ *
+ * The site omits the normal category base, so WordPress does not create a
+ * usable rewrite match for /communication/page/{n}/. Register the missing
+ * rule explicitly and refresh the stored rules once when this fix is deployed.
+ */
+function heiankenzai_register_communication_pagination_rewrite() {
+    add_rewrite_rule(
+        '^communication/page/([1-9][0-9]*)/?$',
+        'index.php?category_name=communication&paged=$matches[1]',
+        'top'
+    );
+}
+add_action('init', 'heiankenzai_register_communication_pagination_rewrite');
+
+function heiankenzai_maybe_flush_communication_pagination_rewrite() {
+    $rewrite_version = '20260730';
+
+    if (get_option('heiankenzai_communication_pagination_rewrite') !== $rewrite_version) {
+        flush_rewrite_rules(false);
+        update_option('heiankenzai_communication_pagination_rewrite', $rewrite_version, false);
+    }
+}
+add_action('init', 'heiankenzai_maybe_flush_communication_pagination_rewrite', 99);
+
+/**
+ * Redirect every not-found front-end request to the site homepage.
+ */
+function heiankenzai_redirect_404_to_home() {
+    if (is_404()) {
+        wp_safe_redirect(home_url('/'), 301);
+        exit;
+    }
+}
+add_action('template_redirect', 'heiankenzai_redirect_404_to_home', 1);

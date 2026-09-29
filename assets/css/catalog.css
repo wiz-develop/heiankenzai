@@ -1,0 +1,229 @@
+.hk-catalog {
+  --catalog-blue: #1e50a2;
+  --catalog-blue-dark: #173f82;
+  --catalog-ink: #1f2126;
+  --catalog-muted: #667085;
+  --catalog-pale: #edf3fb;
+  width: min(1120px, 100%);
+  margin-inline: auto;
+  padding-inline: clamp(20px, 4vw, 48px);
+}
+
+.hk-catalog__header {
+  max-width: 720px;
+  margin-bottom: clamp(32px, 5vw, 56px);
+}
+
+.hk-catalog__eyebrow {
+  margin: 0 0 8px;
+  color: var(--catalog-blue);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.hk-catalog__header h2 {
+  position: relative;
+  margin: 0 0 18px;
+  padding-left: 18px;
+  color: var(--catalog-ink);
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+  line-height: 1.35;
+}
+
+.hk-catalog__header h2::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: var(--catalog-blue);
+  content: "";
+}
+
+.hk-catalog__header > p:last-child {
+  margin: 0;
+  color: var(--catalog-muted);
+  line-height: 1.9;
+}
+
+.hk-catalog__list {
+  border-top: 1px solid #d8dee8;
+}
+
+.hk-catalog-card {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) minmax(280px, 1fr) minmax(230px, 280px);
+  min-height: 320px;
+  border-bottom: 1px solid #d8dee8;
+  background: #fff;
+}
+
+.hk-catalog-card__visual {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: clamp(24px, 4vw, 42px);
+  background: #f6f7f9;
+}
+
+.hk-catalog-card__visual a {
+  display: block;
+  max-width: 100%;
+}
+
+.hk-catalog-card__visual img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: min(245px, 27vw);
+  object-fit: contain;
+  box-shadow: 0 10px 28px rgb(31 33 38 / 16%);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.hk-catalog-card__visual a:hover img {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 34px rgb(31 33 38 / 22%);
+}
+
+.hk-catalog-card__body {
+  align-self: center;
+  padding: clamp(28px, 4vw, 52px);
+}
+
+.hk-catalog-card__subtitle {
+  margin: 0 0 10px;
+  color: var(--catalog-blue);
+  font-family: "Outfit", "Noto Sans JP", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.hk-catalog-card__body h3 {
+  margin: 0 0 20px;
+  color: var(--catalog-ink);
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+  line-height: 1.55;
+}
+
+.hk-catalog-card__description,
+.hk-catalog-card__description p {
+  margin: 0;
+  color: var(--catalog-muted);
+  font-size: 0.95rem;
+  line-height: 1.9;
+}
+
+.hk-catalog-card__action {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  background: var(--catalog-pale);
+}
+
+.hk-catalog-card__button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  min-height: 58px;
+  padding: 14px 18px 14px 22px;
+  border: 1px solid var(--catalog-blue);
+  background: var(--catalog-blue);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.hk-catalog-card__button svg {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.hk-catalog-card__button:hover {
+  background: #fff;
+  color: var(--catalog-blue-dark);
+}
+
+.hk-catalog-card__button:focus-visible,
+.hk-catalog-card__visual a:focus-visible {
+  outline: 3px solid #e65734;
+  outline-offset: 4px;
+}
+
+.hk-catalog__empty {
+  margin: 0;
+  padding: 36px;
+  border-block: 1px solid #d8dee8;
+  background: #f6f7f9;
+  text-align: center;
+}
+
+@media (max-width: 960px) {
+  .hk-catalog-card {
+    grid-template-columns: minmax(190px, 34%) 1fr;
+  }
+
+  .hk-catalog-card__action {
+    grid-column: 1 / -1;
+    padding: 22px clamp(24px, 5vw, 48px);
+  }
+
+  .hk-catalog-card__button {
+    max-width: 320px;
+  }
+
+  .hk-catalog-card__visual img {
+    height: min(240px, 34vw);
+  }
+}
+
+@media (max-width: 640px) {
+  .hk-catalog {
+    padding-inline: 18px;
+  }
+
+  .hk-catalog-card {
+    grid-template-columns: 1fr;
+  }
+
+  .hk-catalog-card__visual {
+    min-height: 290px;
+    padding: 30px;
+  }
+
+  .hk-catalog-card__visual img {
+    height: 230px;
+  }
+
+  .hk-catalog-card__body {
+    padding: 30px 24px 34px;
+  }
+
+  .hk-catalog-card__action {
+    grid-column: auto;
+    padding: 22px 24px;
+  }
+
+  .hk-catalog-card__button {
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hk-catalog-card__visual img,
+  .hk-catalog-card__button {
+    transition: none;
+  }
+}

@@ -163,8 +163,8 @@ function heiankenzai_seed_catalog_item() {
 	$post_id = wp_insert_post([
 		'post_type'    => 'catalog_item',
 		'post_status'  => 'publish',
-		'post_title'   => 'セレクトブランカタログ',
-		'post_content' => '住宅設備・建材を掲載した製品カタログです。',
+		'post_title'   => '平安建材オリジナル設備カタログ',
+		'post_content' => "数あるメーカーの中から選りすぐりの商品を独自にセレクトした、\n平安建材オリジナル設備カタログ「ライフセレクト」です。\n\n各メーカーとの交渉によるお求めやすいパック価格を実現し、\n新築・リフォームを問わず幅広い現場に対応。\n\nこの1冊で設備の仕様選定をスムーズに進められる為、\n工務店様・施主様双方のお打ち合わせや商品選びのご負担を軽減します。\n各メーカーのショールームにも共有しているので、ショールームでのお打ち合わせにもご活用いただけます。\n\n(※本カタログは、2025年8月発行時点の情報・価格を掲載しています。\n最新の情報・価格については、弊社の営業担当者までお問い合わせください。)",
 		'menu_order'   => 1,
 	]);
 
@@ -193,6 +193,41 @@ function heiankenzai_seed_catalog_item() {
 	update_option('heiankenzai_catalog_seed_version', '1', false);
 }
 add_action('init', 'heiankenzai_seed_catalog_item', 30);
+
+/**
+ * Apply the requested copy to the existing Life Select entry once.
+ *
+ * The item remains fully editable in the dashboard after this migration.
+ */
+function heiankenzai_update_life_select_copy() {
+	if (get_option('heiankenzai_catalog_copy_version') === '1') {
+		return;
+	}
+
+	$catalogs = get_posts([
+		'post_type'      => 'catalog_item',
+		'post_status'    => 'publish',
+		'posts_per_page' => 1,
+		'meta_key'       => '_catalog_subtitle',
+		'meta_value'     => 'LIFE SELECT VOL.18',
+		'fields'         => 'ids',
+	]);
+
+	if (! $catalogs) {
+		return;
+	}
+
+	$result = wp_update_post([
+		'ID'           => (int) $catalogs[0],
+		'post_title'   => '平安建材オリジナル設備カタログ',
+		'post_content' => "数あるメーカーの中から選りすぐりの商品を独自にセレクトした、\n平安建材オリジナル設備カタログ「ライフセレクト」です。\n\n各メーカーとの交渉によるお求めやすいパック価格を実現し、\n新築・リフォームを問わず幅広い現場に対応。\n\nこの1冊で設備の仕様選定をスムーズに進められる為、\n工務店様・施主様双方のお打ち合わせや商品選びのご負担を軽減します。\n各メーカーのショールームにも共有しているので、ショールームでのお打ち合わせにもご活用いただけます。\n\n(※本カタログは、2025年8月発行時点の情報・価格を掲載しています。\n最新の情報・価格については、弊社の営業担当者までお問い合わせください。)",
+	], true);
+
+	if (! is_wp_error($result)) {
+		update_option('heiankenzai_catalog_copy_version', '1', false);
+	}
+}
+add_action('init', 'heiankenzai_update_life_select_copy', 35);
 
 /**
  * Load catalog styles only where they are needed.
@@ -347,7 +382,7 @@ add_filter('the_content', 'heiankenzai_catalog_page_content', 20);
  * Add the company brochure as the fourth child of the Company menu.
  */
 function heiankenzai_add_company_brochure_menu_item() {
-	if (get_option('heiankenzai_company_brochure_menu_version') === '2') {
+	if (get_option('heiankenzai_company_brochure_menu_version') === '3') {
 		return;
 	}
 
@@ -385,9 +420,10 @@ function heiankenzai_add_company_brochure_menu_item() {
 
 			$brochure_item_id = wp_update_nav_menu_item($menu->term_id, $brochure_item ? $brochure_item->ID : 0, [
 				'menu-item-title'     => '会社パンフレット',
-				'menu-item-url'       => get_template_directory_uri() . '/assets/catalog/company-pamphlet_2025.pdf',
+				'menu-item-url'       => get_template_directory_uri() . '/assets/catalog/company-pamphlet_2025.pdf#page=1',
 				'menu-item-parent-id' => $parent->ID,
 				'menu-item-target'    => '_blank',
+				'menu-item-xfn'       => 'noopener noreferrer',
 				'menu-item-status'    => 'publish',
 			]);
 
@@ -437,7 +473,7 @@ function heiankenzai_add_company_brochure_menu_item() {
 	}
 
 	if ($updated) {
-		update_option('heiankenzai_company_brochure_menu_version', '2', false);
+		update_option('heiankenzai_company_brochure_menu_version', '3', false);
 	}
 }
 add_action('init', 'heiankenzai_add_company_brochure_menu_item', 40);

@@ -58,7 +58,7 @@
 
 .hk-catalog-card {
   display: grid;
-  grid-template-columns: minmax(200px, 260px) minmax(280px, 1fr) minmax(230px, 280px);
+  grid-template-columns: minmax(190px, 230px) minmax(360px, 1fr) minmax(220px, 250px);
   min-height: 320px;
   border-bottom: 1px solid #d8dee8;
   background: #fff;
@@ -94,7 +94,7 @@
 
 .hk-catalog-card__body {
   align-self: center;
-  padding: clamp(28px, 4vw, 52px);
+  padding: clamp(28px, 3vw, 38px);
 }
 
 .hk-catalog-card__subtitle {
@@ -113,12 +113,20 @@
   line-height: 1.55;
 }
 
-.hk-catalog-card__description,
 .hk-catalog-card__description p {
   margin: 0;
   color: var(--catalog-muted);
-  font-size: 0.95rem;
-  line-height: 1.9;
+  font-size: 0.875rem;
+  line-height: 1.75;
+}
+
+.hk-catalog-card__description p + p {
+  margin-top: 0.85em;
+}
+
+.hk-catalog-card__description p:last-child {
+  color: #737b8b;
+  font-size: 0.8rem;
 }
 
 .hk-catalog-card__action {
@@ -146,6 +154,10 @@
   transition: background-color 180ms ease, color 180ms ease;
 }
 
+.hk-catalog-card__button:visited {
+  color: #fff;
+}
+
 .hk-catalog-card__button svg {
   flex: 0 0 24px;
   width: 24px;
@@ -157,9 +169,11 @@
   stroke-width: 1.8;
 }
 
-.hk-catalog-card__button:hover {
+.hk-catalog-card__button:hover,
+.hk-catalog-card__button:visited:hover {
   background: #fff;
   color: var(--catalog-blue-dark);
+  opacity: 1;
 }
 
 .hk-catalog-card__button:focus-visible,

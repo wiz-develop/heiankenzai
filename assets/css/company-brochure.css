@@ -1,0 +1,105 @@
+.hk-company-brochure {
+  --brochure-blue: #1e50a2;
+  --brochure-blue-dark: #173f82;
+  --brochure-ink: #1f2126;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 350px);
+  align-items: center;
+  gap: clamp(28px, 5vw, 72px);
+  width: min(1120px, calc(100% - 40px));
+  margin: clamp(56px, 8vw, 96px) auto 0;
+  padding: clamp(32px, 5vw, 56px);
+  border-top: 4px solid var(--brochure-blue);
+  background: #edf3fb;
+}
+
+.hk-company-brochure__copy p,
+.hk-company-brochure__copy h2 {
+  margin: 0;
+}
+
+.hk-company-brochure__copy .hk-company-brochure__label {
+  margin-bottom: 8px;
+  color: var(--brochure-blue);
+  font-family: "Outfit", "Noto Sans JP", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.hk-company-brochure__copy h2 {
+  color: var(--brochure-ink);
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+  line-height: 1.5;
+}
+
+.hk-company-brochure__copy h2 + p {
+  margin-top: 12px;
+  color: #667085;
+  font-size: 0.95rem;
+  line-height: 1.8;
+}
+
+.hk-company-brochure__button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 64px;
+  padding: 16px 20px 16px 24px;
+  border: 1px solid var(--brochure-blue);
+  background: var(--brochure-blue);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-decoration: none;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.hk-company-brochure__button:visited {
+  color: #fff;
+}
+
+.hk-company-brochure__button svg {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.hk-company-brochure__button:hover,
+.hk-company-brochure__button:visited:hover {
+  background: #fff;
+  color: var(--brochure-blue-dark);
+  opacity: 1;
+}
+
+.hk-company-brochure__button:focus-visible {
+  outline: 3px solid #e65734;
+  outline-offset: 4px;
+}
+
+@media (max-width: 720px) {
+  .hk-company-brochure {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    width: calc(100% - 36px);
+    margin-top: 52px;
+    padding: 30px 24px 26px;
+  }
+
+  .hk-company-brochure__button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hk-company-brochure__button {
+    transition: none;
+  }
+}

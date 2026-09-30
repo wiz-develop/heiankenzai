@@ -1,3 +1,7 @@
+.has-company-brochure .ct-container-full {
+  padding-bottom: 0;
+}
+
 .hk-company-brochure {
   --brochure-blue: #1e50a2;
   --brochure-blue-dark: #173f82;
@@ -6,8 +10,9 @@
   grid-template-columns: minmax(0, 1fr) minmax(260px, 350px);
   align-items: center;
   gap: clamp(28px, 5vw, 72px);
-  width: min(1120px, calc(100% - 40px));
-  margin: clamp(56px, 8vw, 96px) auto 0;
+  width: 100%;
+  max-width: none;
+  margin: clamp(56px, 8vw, 96px) 0 0;
   padding: clamp(32px, 5vw, 56px);
   border-top: 4px solid var(--brochure-blue);
   background: #edf3fb;
@@ -88,7 +93,7 @@
   .hk-company-brochure {
     grid-template-columns: 1fr;
     gap: 24px;
-    width: calc(100% - 36px);
+    width: 100%;
     margin-top: 52px;
     padding: 30px 24px 26px;
   }

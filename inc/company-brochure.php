@@ -28,6 +28,21 @@ function heiankenzai_enqueue_company_brochure_styles() {
 add_action('wp_enqueue_scripts', 'heiankenzai_enqueue_company_brochure_styles', 20);
 
 /**
+ * Add a stable page class for removing the theme's trailing content padding.
+ *
+ * @param array $classes Body classes.
+ * @return array
+ */
+function heiankenzai_company_brochure_body_class($classes) {
+	if (is_page('company')) {
+		$classes[] = 'has-company-brochure';
+	}
+
+	return $classes;
+}
+add_filter('body_class', 'heiankenzai_company_brochure_body_class');
+
+/**
  * Add the brochure download after the existing company information.
  *
  * @param string $content Company page content.

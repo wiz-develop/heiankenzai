@@ -58,15 +58,17 @@ function heiankenzai_company_brochure_content($content) {
 	ob_start();
 	?>
 	<section class="hk-company-brochure" aria-labelledby="hk-company-brochure-heading">
-		<div class="hk-company-brochure__copy">
-			<p class="hk-company-brochure__label">COMPANY PROFILE</p>
-			<h2 id="hk-company-brochure-heading">会社パンフレット</h2>
-			<p>平安建材の会社案内資料をPDFでご覧いただけます。</p>
+		<div class="hk-company-brochure__inner">
+			<div class="hk-company-brochure__copy">
+				<p class="hk-company-brochure__label">COMPANY PROFILE</p>
+				<h2 id="hk-company-brochure-heading">会社パンフレット</h2>
+				<p>平安建材の会社案内資料をPDFでご覧いただけます。</p>
+			</div>
+			<a class="hk-company-brochure__button" href="<?php echo esc_url($pdf_url); ?>" target="_blank" rel="noopener noreferrer">
+				<span>会社案内資料ダウンロード</span>
+				<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+			</a>
 		</div>
-		<a class="hk-company-brochure__button" href="<?php echo esc_url($pdf_url); ?>" target="_blank" rel="noopener noreferrer">
-			<span>会社案内資料ダウンロード</span>
-			<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
-		</a>
 	</section>
 	<?php
 

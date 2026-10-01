@@ -13,6 +13,8 @@ if (version_compare(PHP_VERSION, '5.7.0', '<')) {
 }
 
 require get_template_directory() . '/inc/init.php';
+require get_template_directory() . '/inc/catalog-management.php';
+require get_template_directory() . '/inc/company-brochure.php';
 require get_template_directory() . '/inc/manufacturer-order.php';
 
 /*-------------------------------------------*/

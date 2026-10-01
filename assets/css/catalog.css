@@ -132,7 +132,7 @@
 .hk-catalog-card__action {
   display: grid;
   place-items: center;
-  padding: 32px;
+  padding: 20px;
   background: var(--catalog-pale);
 }
 
@@ -140,16 +140,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 12px;
   width: 100%;
   min-height: 58px;
-  padding: 14px 18px 14px 22px;
+  padding: 14px 14px 14px 18px;
   border: 1px solid var(--catalog-blue);
   background: var(--catalog-blue);
   color: #fff;
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.4;
+  white-space: nowrap;
   text-decoration: none;
   transition: background-color 180ms ease, color 180ms ease;
 }
@@ -159,9 +160,9 @@
 }
 
 .hk-catalog-card__button svg {
-  flex: 0 0 24px;
-  width: 24px;
-  height: 24px;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
